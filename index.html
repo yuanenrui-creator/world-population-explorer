@@ -1,0 +1,535 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GlobalPulse &mdash; World Population Explorer</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Ambient background glow -->
+  <div class="ambient-glow"></div>
+
+  <div class="app-container">
+    <!-- Header / Navbar -->
+    <header class="header-nav">
+      <div class="brand-wrapper">
+        <div class="brand-icon-wrapper">
+          <i class="fa-solid fa-earth-americas"></i>
+        </div>
+        <div>
+          <div class="brand-title">
+            GlobalPulse
+            <span class="brand-badge">2024 Observance</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live World Population Ticker -->
+      <div class="live-ticker-container">
+        <div class="live-indicator">
+          <span class="live-dot"></span>
+          <span>World Population</span>
+        </div>
+        <div class="ticker-value" id="liveTickerVal">8,142,786,031</div>
+      </div>
+
+      <!-- Header Action Buttons -->
+      <div class="nav-actions">
+        <button class="btn-icon" id="btnRefreshData" title="Refresh Live Data from World Bank API">
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </button>
+        <button class="btn-icon" id="btnExportCsv" title="Export Current Table as CSV">
+          <i class="fa-solid fa-file-csv"></i>
+        </button>
+        <button class="btn-icon" id="btnToggleTheme" title="Toggle Light / Dark Theme">
+          <i class="fa-solid fa-moon" id="themeIcon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Global Hero Stats Bar -->
+    <section class="stats-grid">
+      <div class="stat-card glass-panel">
+        <div class="stat-icon blue">
+          <i class="fa-solid fa-users"></i>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Total World Population</span>
+          <span class="stat-value" id="heroTotalPop">8.14 Billion</span>
+          <span class="stat-subtext text-emerald-500">
+            <i class="fa-solid fa-arrow-trend-up"></i> ~0.88% annual growth
+          </span>
+        </div>
+      </div>
+
+      <div class="stat-card glass-panel">
+        <div class="stat-icon purple">
+          <i class="fa-solid fa-flag"></i>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Countries & Territories</span>
+          <span class="stat-value" id="heroTotalCountries">250</span>
+          <span class="stat-subtext">Across 6 continents</span>
+        </div>
+      </div>
+
+      <div class="stat-card glass-panel">
+        <div class="stat-icon emerald">
+          <i class="fa-solid fa-trophy"></i>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Most Populous Country</span>
+          <span class="stat-value" id="heroTopCountry">India (1.45B)</span>
+          <span class="stat-subtext">17.8% of humanity</span>
+        </div>
+      </div>
+
+      <div class="stat-card glass-panel">
+        <div class="stat-icon amber">
+          <i class="fa-solid fa-building-columns"></i>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Highest Density</span>
+          <span class="stat-value" id="heroTopDensity">Monaco</span>
+          <span class="stat-subtext">24,360 people / km&sup2;</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="view-tabs" role="tablist">
+      <button class="tab-btn active" data-view="table">
+        <i class="fa-solid fa-table-list"></i> Table & Explorer
+      </button>
+      <button class="tab-btn" data-view="map">
+        <i class="fa-solid fa-map-location-dot"></i> Interactive World Map
+      </button>
+      <button class="tab-btn" data-view="charts">
+        <i class="fa-solid fa-chart-pie"></i> Visual Analytics
+      </button>
+      <button class="tab-btn" data-view="compare">
+        <i class="fa-solid fa-scale-balanced"></i> Country Comparison
+      </button>
+      <button class="tab-btn" data-view="quiz">
+        <i class="fa-solid fa-gamepad"></i> Population Quiz
+      </button>
+    </nav>
+
+    <!-- =====================================================================
+         VIEW 1: TABLE & EXPLORER
+         ===================================================================== -->
+    <main id="viewTable" class="view-section">
+      <!-- Filter and Control Bar -->
+      <section class="controls-bar glass-panel">
+        <div class="controls-row-top">
+          <div class="search-box-wrapper">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="searchInput" class="search-input" placeholder="Search by country name, capital, or code (e.g. Japan, Paris, USA)..." autocomplete="off">
+            <button id="searchClearBtn" class="search-clear"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+
+          <div class="filter-select-group">
+            <!-- Population Tier -->
+            <select id="tierFilter" class="custom-select" title="Filter by population size">
+              <option value="all">All Population Sizes</option>
+              <option value="giant">&gt; 100 Million (Giants)</option>
+              <option value="large">20M &ndash; 100M (Large)</option>
+              <option value="medium">5M &ndash; 20M (Medium)</option>
+              <option value="small">&lt; 5 Million (Small)</option>
+            </select>
+
+            <!-- Sort By -->
+            <select id="sortBySelect" class="custom-select" title="Sort countries">
+              <option value="pop-desc">Population: High to Low</option>
+              <option value="pop-asc">Population: Low to High</option>
+              <option value="name-asc">Country Name: A → Z</option>
+              <option value="name-desc">Country Name: Z → A</option>
+              <option value="density-desc">Density: High to Low</option>
+              <option value="area-desc">Land Area: Largest First</option>
+              <option value="growth-desc">Growth Rate: Highest First</option>
+            </select>
+
+            <!-- Items Per Page -->
+            <select id="pageSizeSelect" class="custom-select" title="Items per page">
+              <option value="15">15 per page</option>
+              <option value="25" selected>25 per page</option>
+              <option value="50">50 per page</option>
+              <option value="100">100 per page</option>
+              <option value="all">Show All</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="controls-row-bottom">
+          <!-- Continent / Region Filter Pills -->
+          <div class="region-pills" id="regionPills">
+            <button class="region-pill active" data-region="all">All Regions (250)</button>
+            <button class="region-pill" data-region="Asia">Asia</button>
+            <button class="region-pill" data-region="Africa">Africa</button>
+            <button class="region-pill" data-region="Europe">Europe</button>
+            <button class="region-pill" data-region="Americas">Americas</button>
+            <button class="region-pill" data-region="Oceania">Oceania</button>
+          </div>
+
+          <!-- Table vs Cards Toggle -->
+          <div class="view-mode-toggle">
+            <button class="view-mode-btn active" id="btnModeTable" title="Table View">
+              <i class="fa-solid fa-list"></i> Table
+            </button>
+            <button class="view-mode-btn" id="btnModeCards" title="Cards View">
+              <i class="fa-solid fa-grip"></i> Cards
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Table Container -->
+      <section id="tableDisplayContainer" class="table-container glass-panel">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th data-sort="rank" style="width: 80px;">Rank <i class="fa-solid fa-sort"></i></th>
+              <th data-sort="name">Country & Territory <i class="fa-solid fa-sort"></i></th>
+              <th data-sort="capital">Capital</th>
+              <th data-sort="region">Region</th>
+              <th data-sort="population">Population (2024) <i class="fa-solid fa-sort"></i></th>
+              <th>World Share</th>
+              <th data-sort="density">Density <i class="fa-solid fa-sort"></i></th>
+              <th data-sort="area">Land Area</th>
+              <th data-sort="growth">Growth <i class="fa-solid fa-sort"></i></th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="countriesTableBody">
+            <!-- Injected via JavaScript -->
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Cards Grid Container (hidden by default) -->
+      <section id="cardsDisplayContainer" class="cards-grid" style="display: none;">
+        <!-- Injected via JavaScript -->
+      </section>
+
+      <!-- Pagination Footer -->
+      <section class="pagination-bar glass-panel">
+        <div class="pagination-info" id="paginationInfo">
+          Showing 1 to 25 of 250 countries
+        </div>
+        <div class="pagination-controls" id="paginationControls">
+          <!-- Injected via JavaScript -->
+        </div>
+      </section>
+    </main>
+
+    <!-- =====================================================================
+         VIEW 2: INTERACTIVE WORLD MAP
+         ===================================================================== -->
+    <main id="viewMap" class="view-section" style="display: none;">
+      <div class="map-view-wrapper glass-panel">
+        <div id="worldMap"></div>
+
+        <!-- Floating Quick Search Panel on Map -->
+        <div class="map-floating-panel glass-panel">
+          <h3 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.75rem;">
+            <i class="fa-solid fa-location-crosshairs text-blue-500"></i> Map Navigator
+          </h3>
+          <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+            Circles are sized by population. Click any bubble to view detailed demographics.
+          </p>
+          <select id="mapCountryFocusSelect" class="custom-select" style="width: 100%;">
+            <option value="">Jump to Country...</option>
+          </select>
+        </div>
+
+        <!-- Map Legend -->
+        <div class="map-legend glass-panel">
+          <div class="legend-title">Population Scale</div>
+          <div class="legend-item">
+            <span class="legend-bubble" style="width: 18px; height: 18px; background: #8b5cf6;"></span>
+            <span>&gt; 500 Million (Megapopulation)</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-bubble" style="width: 14px; height: 14px; background: #3b82f6;"></span>
+            <span>100M &ndash; 500M</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-bubble" style="width: 11px; height: 11px; background: #06b6d4;"></span>
+            <span>20M &ndash; 100M</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-bubble" style="width: 8px; height: 8px; background: #10b981;"></span>
+            <span>5M &ndash; 20M</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-bubble" style="width: 6px; height: 6px; background: #f59e0b;"></span>
+            <span>&lt; 5 Million</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- =====================================================================
+         VIEW 3: VISUAL ANALYTICS & CHARTS
+         ===================================================================== -->
+    <main id="viewCharts" class="view-section" style="display: none;">
+      <div class="charts-grid">
+        <!-- Chart 1: Top 15 Most Populous -->
+        <div class="chart-card glass-panel">
+          <div class="chart-header">
+            <div class="chart-title">
+              <i class="fa-solid fa-ranking-star text-blue-500"></i>
+              Top 15 Most Populous Nations
+            </div>
+            <span class="brand-badge">2024 World Bank</span>
+          </div>
+          <div class="chart-canvas-container">
+            <canvas id="topCountriesChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: Continental Distribution -->
+        <div class="chart-card glass-panel">
+          <div class="chart-header">
+            <div class="chart-title">
+              <i class="fa-solid fa-chart-pie text-purple-500"></i>
+              Population Share by Continent
+            </div>
+            <span class="brand-badge">% Share</span>
+          </div>
+          <div class="chart-canvas-container">
+            <canvas id="continentShareChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 3: Highest Population Density -->
+        <div class="chart-card glass-panel">
+          <div class="chart-header">
+            <div class="chart-title">
+              <i class="fa-solid fa-building-user text-emerald-500"></i>
+              Top 10 Densely Populated (People / km&sup2;)
+            </div>
+            <span class="brand-badge">Density</span>
+          </div>
+          <div class="chart-canvas-container">
+            <canvas id="densityChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 4: Population Tiers Distribution -->
+        <div class="chart-card glass-panel">
+          <div class="chart-header">
+            <div class="chart-title">
+              <i class="fa-solid fa-layer-group text-amber-500"></i>
+              Distribution by Population Tiers
+            </div>
+            <span class="brand-badge">Number of Nations</span>
+          </div>
+          <div class="chart-canvas-container">
+            <canvas id="tiersChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- =====================================================================
+         VIEW 4: COUNTRY COMPARISON TOOL
+         ===================================================================== -->
+    <main id="viewCompare" class="view-section" style="display: none;">
+      <div class="compare-container glass-panel">
+        <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; text-align: center;">
+          <i class="fa-solid fa-scale-balanced text-blue-500"></i> Head-to-Head Comparison
+        </h2>
+        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1.75rem;">
+          Select any two nations to analyze demographic, geographic, and density differences.
+        </p>
+
+        <!-- Country Selectors -->
+        <div class="compare-selectors-bar">
+          <div class="compare-selector-card">
+            <label style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">Country A</label>
+            <select id="compareSelectA" class="custom-select" style="width: 100%;">
+              <!-- Injected via JS -->
+            </select>
+          </div>
+
+          <div class="compare-selector-card">
+            <label style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">Country B</label>
+            <select id="compareSelectB" class="custom-select" style="width: 100%;">
+              <!-- Injected via JS -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Comparison Cards -->
+        <div class="compare-cards-wrapper" id="compareCardsContent">
+          <!-- Injected via JS -->
+        </div>
+
+        <!-- Comparative Metrics Diff Bar -->
+        <div class="diff-metrics-container" id="compareDiffBars">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+    </main>
+
+    <!-- =====================================================================
+         VIEW 5: POPULATION QUIZ GAME
+         ===================================================================== -->
+    <main id="viewQuiz" class="view-section" style="display: none;">
+      <div class="quiz-wrapper glass-panel">
+        <div class="quiz-header">
+          <h2 class="quiz-title">Demographic Clash</h2>
+          <p class="quiz-subtitle">Which nation has a higher population? Test your global knowledge!</p>
+        </div>
+
+        <div class="quiz-scoreboard">
+          <div class="quiz-score-pill">
+            <i class="fa-solid fa-fire text-amber-500"></i>
+            Current Streak: <span id="quizStreak" style="color: var(--brand-primary); font-size: 1.1rem;">0</span>
+          </div>
+          <div class="quiz-score-pill">
+            <i class="fa-solid fa-crown text-yellow-500"></i>
+            Best Streak: <span id="quizBestStreak" style="color: #10b981; font-size: 1.1rem;">0</span>
+          </div>
+        </div>
+
+        <div class="quiz-battlefield">
+          <!-- Country Option 1 -->
+          <div class="quiz-card glass-panel" id="quizCardA">
+            <img id="quizFlagA" class="quiz-flag" src="" alt="Country A Flag">
+            <h3 id="quizNameA" class="quiz-country-name">Country A</h3>
+            <span id="quizRegionA" style="font-size: 0.82rem; color: var(--text-muted);">Continent</span>
+            <button class="quiz-btn-choose" id="quizChooseA">Select This Nation</button>
+            <div class="quiz-pop-reveal" id="quizPopA">1,450,935,791</div>
+          </div>
+
+          <!-- VS Divider -->
+          <div class="quiz-vs-divider">
+            <div class="compare-vs-badge">VS</div>
+          </div>
+
+          <!-- Country Option 2 -->
+          <div class="quiz-card glass-panel" id="quizCardB">
+            <img id="quizFlagB" class="quiz-flag" src="" alt="Country B Flag">
+            <h3 id="quizNameB" class="quiz-country-name">Country B</h3>
+            <span id="quizRegionB" style="font-size: 0.82rem; color: var(--text-muted);">Continent</span>
+            <button class="quiz-btn-choose" id="quizChooseB">Select This Nation</button>
+            <div class="quiz-pop-reveal" id="quizPopB">340,003,797</div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 1.5rem;">
+          <button id="quizNextBtn" class="quiz-next-btn">
+            Next Match <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- =======================================================================
+       COUNTRY DETAILS MODAL
+       ======================================================================= -->
+  <div class="modal-backdrop" id="countryModal">
+    <div class="modal-card glass-panel" id="modalCard">
+      <button class="modal-close-btn" id="modalCloseBtn" aria-label="Close Modal">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="modal-hero">
+        <img id="modalFlag" class="modal-flag-large" src="" alt="Country Flag">
+        <div class="modal-title-group">
+          <h2 id="modalCountryName">Country Name</h2>
+          <p id="modalOfficialName">Official Name of the Country</p>
+        </div>
+      </div>
+
+      <div class="modal-stats-grid">
+        <div class="modal-stat-box">
+          <div class="modal-stat-label">Global Rank</div>
+          <div class="modal-stat-val" id="modalRank">#1</div>
+        </div>
+        <div class="modal-stat-box">
+          <div class="modal-stat-label">Total Population</div>
+          <div class="modal-stat-val" id="modalPop">1,450,935,791</div>
+        </div>
+        <div class="modal-stat-box">
+          <div class="modal-stat-label">World Share</div>
+          <div class="modal-stat-val" id="modalShare">17.82%</div>
+        </div>
+      </div>
+
+      <div class="modal-details-grid">
+        <div class="modal-detail-row">
+          <span>Capital City</span>
+          <span id="modalCapital">New Delhi</span>
+        </div>
+        <div class="modal-detail-row">
+          <span>Continent & Region</span>
+          <span id="modalRegion">Asia (Southern Asia)</span>
+        </div>
+        <div class="modal-detail-row">
+          <span>Surface Area</span>
+          <span id="modalArea">3,287,263 km&sup2;</span>
+        </div>
+        <div class="modal-detail-row">
+          <span>Population Density</span>
+          <span id="modalDensity">441.4 people / km&sup2;</span>
+        </div>
+        <div class="modal-detail-row">
+          <span>Annual Growth Rate</span>
+          <span id="modalGrowth">+0.82% / year</span>
+        </div>
+        <div class="modal-detail-row">
+          <span>ISO Alpha-2 / Alpha-3</span>
+          <span id="modalCodes">IN / IND</span>
+        </div>
+        <div class="modal-detail-row">
+          <span>Languages</span>
+          <span id="modalLanguages">English, Hindi</span>
+        </div>
+        <div class="modal-detail-row">
+          <span>Currencies</span>
+          <span id="modalCurrencies">INR (Indian Rupee)</span>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <a id="modalWikiLink" href="#" target="_blank" rel="noopener noreferrer" class="modal-btn secondary">
+          <i class="fa-brands fa-wikipedia-w"></i> View on Wikipedia
+        </a>
+        <a id="modalMapsLink" href="#" target="_blank" rel="noopener noreferrer" class="modal-btn primary">
+          <i class="fa-solid fa-map-pin"></i> View on Google Maps
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <!-- 1. Offline Dataset -->
+  <script src="data/countries-data.js"></script>
+  <!-- 2. Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- 3. Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- 4. Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <!-- 5. Main Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
